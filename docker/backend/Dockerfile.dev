@@ -1,0 +1,60 @@
+FROM python:3.9-alpine3.13
+LABEL maintainer="jbetfien@gmail.com"
+
+ENV PYTHONDONTWRITEBYTECODE 1
+
+# for faster response
+ENV PYTHONUNBUFFERED 1
+
+COPY ./backend/requirements.txt /tmp/requirements.txt
+COPY ./backend/requirements.dev.txt /tmp/requirements.dev.txt
+
+COPY ./backend /app
+
+#  Define work directory
+WORKDIR /app
+
+EXPOSE 8000
+
+# Getting overrided in decker-compose.yml
+ARG DEV=false
+
+RUN python -m venv /py && \
+    /py/bin/pip install --upgrade pip && \
+    apk add --update --no-cache postgresql-client jpeg-dev && \
+    apk add --update --no-cache --virtual .tmp-build-deps \
+    #to install linux header for wsgi server installation
+        build-base postgresql-dev musl-dev zlib zlib-dev linux-headers && \
+    /py/bin/pip install -r /tmp/requirements.txt && \
+    #if condition in shell scripting
+    if [ $DEV = "true" ]; \
+        then /py/bin/pip install -r /tmp/requirements.dev.txt ; \
+    fi && \
+    rm -rf /tmp && \
+    apk del .tmp-build-deps && \
+    adduser \
+        --disabled-password \
+        --no-create-home \
+        django-user && \
+    # creating mediafiles and staticfiles folders
+    mkdir -p /app/staticfiles && \
+    mkdir -p /app/mediafiles && \
+    # giving ownership of app  folders and sub-folders to django-user
+    chown -R django-user:django-user /app && \
+    chmod -R 755 /app && \
+    # giving ownership of /py/lib/python3.9/site-packages folders to django-user
+    chown -R django-user:django-user /py/lib/python3.9/site-packages && \
+    chmod -R 755 /py/lib/python3.9/site-packages
+
+# Add py folder to the PATH of the container
+ENV PATH="/py/bin:$PATH"
+
+# Change root user to django-user
+USER django-user
+
+
+
+
+
+
+

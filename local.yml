@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/database/Dockerfile
+    container_name: c-db
+    volumes:
+      - db:/var/lib/postgresql/data
+    # networks:
+    #   - private_network
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+
+  backend:
+    hostname: backend
+    image: django:django-i
+    container_name: c-api
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend/:/app/
+      - staticfiles-backend:/app/staticfiles
+      - mediafiles-backend:/app/mediafiles
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    # networks:
+    #   - private_network
+    depends_on:
+      - db
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: c-redis
+    # networks:
+    #   - private_network
+
+  frontend:
+    hostname: frontend
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile
+    container_name: c-client
+    ports:
+      - 3000:3000
+    env_file:
+      - .env
+    volumes:
+      - frontend-assets:/app/static_assets
+    # networks:
+    #   - private_network
+    # depends_on:
+    #   - django
+
+# networks:
+#   private_network:
+
+volumes:
+  db:
+  staticfiles-backend:
+  mediafiles-backend:
+  frontend-assets:

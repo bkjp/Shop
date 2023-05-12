@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/database/Dockerfile
+    container_name: c-lea-admin-db
+    #restart: always
+    volumes:
+      - db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+
+  backend:
+    hostname: backend
+    #restart: always
+    image: i-api-prod:django-prod
+    container_name: c-lea-admin-api
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    volumes:
+      - staticfiles-backend:/app/staticfiles
+      - mediafiles-backend:/app/mediafiles
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - USE_SPACES=False
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  redis:
+    image: redis:alpine
+
+  frontend:
+    hostname: frontend
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile
+    container_name: c-lea-admin-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - frontend-assets:/app/static_assets
+    depends_on:
+      - django
+
+volumes:
+  db:
+  staticfiles-backend:
+  mediafiles-backend:
+  frontend-assets:

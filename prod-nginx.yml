@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/database/Dockerfile
+    container_name: c-db
+    restart: always
+    volumes:
+      - db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+
+  django:
+    restart: always
+    image: api-prod-i:django-prod
+    container_name: c-api
+    build:
+      context: .
+      dockerfile: ./docker/backend/Dockerfile
+    volumes:
+      - ./backend:/app
+      - staticfiles-backend:/app/staticfiles
+      - mediafiles-backend:/app/mediafiles
+    environment:
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - SECRET_KEY=${DJANGO_SECRET_KEY}
+      - ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
+      - DEBUG=1
+      - USE_SPACES=False
+    expose:
+      - 8000
+    depends_on:
+      - db
+
+  frontend:
+    hostname: frontend
+    build:
+      context: .
+      dockerfile: ./docker/frontend/Dockerfile
+    container_name: c-frontend
+    expose:
+      - 3000
+    volumes:
+      - frontend-assets:/app/static_assets
+    depends_on:
+      - django
+
+  proxy:
+    #restart: always
+    image: proxy-prod-i:proxy
+    container_name: c-proxy
+    build:
+      context: .
+      dockerfile: ./nginx/Dockerfile
+    ports:
+      - 80:80
+    volumes:
+      - staticfiles-backend:/app/staticfiles
+      - mediafiles-backend:/app/mediafiles
+    depends_on:
+      - django
+
+volumes:
+  db-prod:
+  staticfiles-backend:
+  mediafiles-backend:
+  frontend-assets:
